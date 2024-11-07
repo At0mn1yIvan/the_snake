@@ -58,6 +58,15 @@ class GameObject:
         """
         pass
 
+    def draw_rect(self, position) -> None:
+        """
+        Метод, который предназначен для отрисовки базовой фигуры
+        квадрата на игровом поле.
+        """
+        rect = pygame.Rect(position, (GRID_SIZE, GRID_SIZE))
+        pygame.draw.rect(screen, self.body_color, rect)
+        pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
+
 
 class Apple(GameObject):
     """Класс, описывающий игровой объект- яблоко."""
@@ -73,31 +82,30 @@ class Apple(GameObject):
         Метод, устанавливающий случайное
         положение яблока на игровом поле.
         """
-        available_positions = [
+        available_positions = set(
             (x * GRID_SIZE, y * GRID_SIZE)
             for x in range(GRID_WIDTH)
             for y in range(GRID_HEIGHT)
-            if (x * GRID_SIZE, y * GRID_SIZE) not in snake_positions
-        ]
-        if available_positions:
-            self.position = choice(available_positions)
+        )
+
+        self.position = choice(
+            tuple(available_positions - set(snake_positions))
+        )
 
     def draw(self):
         """Метод, отрисовывающий яблоко на игровом поле."""
-        rect = pygame.Rect(self.position, (GRID_SIZE, GRID_SIZE))
-        pygame.draw.rect(screen, self.body_color, rect)
-        pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
+        self.draw_rect(self.position)
 
 
 class Snake(GameObject):
     """Класс, описывающий игровой объект- змейку."""
 
-    def __init__(self) -> None:
+    def __init__(self, direction=RIGHT) -> None:
         """Метод, инициализирующий объект класса Snake."""
         super().__init__()
         self.length = 1
         self.positions = [self.position]
-        self.direction = RIGHT
+        self.direction = direction
         self.next_direction = None
         self.body_color = SNAKE_COLOR
 
@@ -127,13 +135,7 @@ class Snake(GameObject):
     def draw(self) -> None:
         """Метод, отрисовывающий змейку на экране."""
         for position in self.positions:
-            rect = pygame.Rect(position, (GRID_SIZE, GRID_SIZE))
-            pygame.draw.rect(screen, self.body_color, rect)
-            pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
-
-        head_rect = pygame.Rect(self.positions[0], (GRID_SIZE, GRID_SIZE))
-        pygame.draw.rect(screen, self.body_color, head_rect)
-        pygame.draw.rect(screen, BORDER_COLOR, head_rect, 1)
+            self.draw_rect(position)
 
     def get_head_position(self) -> tuple:
         """Метод, возвращающий позицию головы змейки."""
@@ -148,9 +150,8 @@ class Snake(GameObject):
         Метод, сбрасывающий змейку
         в начальное состояние после столкновения с собой.
         """
-        self.length = 1
-        self.positions = [self.position]
-        self.direction = choice([UP, DOWN, LEFT, RIGHT])
+        direction = choice([UP, DOWN, LEFT, RIGHT])
+        self.__init__(direction)
         screen.fill(BOARD_BACKGROUND_COLOR)
 
 
@@ -159,19 +160,24 @@ def handle_keys(game_object) -> None:
     Функция, обрабатывающая нажатия клавиш,
     чтобы изменить направление движения змейки.
     """
+    events_dict = {
+        (pygame.K_UP, LEFT): UP,
+        (pygame.K_UP, RIGHT): UP,
+        (pygame.K_DOWN, LEFT): DOWN,
+        (pygame.K_DOWN, RIGHT): DOWN,
+        (pygame.K_LEFT, DOWN): LEFT,
+        (pygame.K_LEFT, UP): LEFT,
+        (pygame.K_RIGHT, DOWN): RIGHT,
+        (pygame.K_RIGHT, UP): RIGHT,
+    }
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             raise SystemExit
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP and game_object.direction != DOWN:
-                game_object.next_direction = UP
-            elif event.key == pygame.K_DOWN and game_object.direction != UP:
-                game_object.next_direction = DOWN
-            elif event.key == pygame.K_LEFT and game_object.direction != RIGHT:
-                game_object.next_direction = LEFT
-            elif event.key == pygame.K_RIGHT and game_object.direction != LEFT:
-                game_object.next_direction = RIGHT
+            game_object.next_direction = events_dict.get(
+                (event.key, game_object.direction)
+            )
 
 
 def main():
